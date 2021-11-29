@@ -1,0 +1,44 @@
+library(tidyverse)
+
+variants <- read_csv('./Variant_Calling/parsed_variants.csv') %>%
+  mutate(Var_id = paste0('Variant_', X1)) %>%
+  select(Var_id, everything(), -X1)
+
+variants %>%
+  filter(!complete.cases(.)) %>%
+  print(width = 400)
+
+variants %>%
+  select(contains('depth')) %>%
+  summary()
+
+
+variants %>%
+  filter(IMPACT == 'HIGH') %>%
+  filter(depth_12B >= 20 & RefRatio_12B <= 0.2) %>%
+  select(Var_id, contains('12B'), Gene, Annot) %>%
+  print(width = 400)
+
+
+parse_variants_bystrain <- function(strain, depth_filter, refratio_filter){
+  depthcol <- paste0('depth_', strain)
+  ratiocol <- paste0('RefRatio_', strain)
+  outname <- paste0('./Variant_Calling/Parsed_by_Strain/',
+                    strain,
+                    '_variants_depth_', depth_filter,
+                    '_refratio_', refratio_filter,
+                    '.csv')
+
+  variants %>%
+    filter(IMPACT == 'HIGH') %>%
+    filter(get(depthcol) >= depth_filter &
+           get(ratiocol) <= refratio_filter) %>%
+    select(Var_id, contains(strain), Gene, Annot, Consequence, Chrom, Pos, Ref, Alt) %>%
+    write_csv(outname)
+}
+
+depth_filter <- 20
+refratio_filter <- 0.2
+
+strains <- c('12B', '10G', 'A7', 'E5', 'B11')
+for (strain in strains){parse_variants_bystrain(strain, depth_filter, refratio_filter)}
